@@ -113,10 +113,19 @@ public @interface SpringBootConfiguration {
   将主配置类（@SpringBootApplication标注的类）的所在包及下面所有子包里面的所有组件扫描到Spring容器；
   - **@Import**({AutoConfigurationImportSelector.class})：将所有需要导入的组件以全类名的方式返回；这些组件就会被添加到容器中。
   
-  会给容器中导入非常多的自动配置类。
+  会给容器中导入非常多的自动配置类。有了自动配置类，免去了我们手动编写配置注入功能组件的工作。
 ```java
 @Inherited
 @AutoConfigurationPackage
 @Import({AutoConfigurationImportSelector.class})
 public @interface EnableAutoConfiguration {
 ```
+
+Spring Boot在启动的时候从类路径下的META-INF/spring.factorys中获取的EnableAutoConfiguration指定的值；
+
+将这些值作为自动配置类导入到容器中，自动配置就生效了。
+
+J2EE的整体解决方案：
+
+org\springframework\boot\spring-boot-autoconfigure\2.0.1.RELEASE\spring-boot-autoconfigure-2.1.6.RELEASE.jar
+
