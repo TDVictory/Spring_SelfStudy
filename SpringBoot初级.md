@@ -129,3 +129,242 @@ J2EE的整体解决方案：
 
 org\springframework\boot\spring-boot-autoconfigure\2.0.1.RELEASE\spring-boot-autoconfigure-2.1.6.RELEASE.jar
 
+### 3、使用Spring Initializer创建一个快速向导
+1.IDE支持使用Spring Initializer
+
+自己选择需要的组件:例如web
+
+默认生成的SpringBoot项目
+
+主程序已经生成好了，我们只需要完成我们的逻辑
+
+resources文件夹目录结构
+- static:保存所有的静态文件；js css images
+- templates:保存所有的模板页面；（Spring Boot默认jar包使用嵌入式的Tomcat,默认不支持JSP）；可以使用模板引擎（freemarker.thymeleaf）;
+- application.properties:Spring Boot的默认配置，例如 server.port=9000
+
+# 二、配置文件
+## 1.配置文件
+SpringBoot使用一个全局配置文件，配置文件名是固定的；
+- application.properties
+- application.yml
+
+配置文件的作用：修改SpringBoot自动配置的默认值（所有配置SpringBoot在底层会帮我们以默认值配置完成）
+
+YAML（YAML AIN'T Markup Language）
+- 是一个标记语言
+- 又不是一个标记语言
+
+标记语言：
+- 以前的配置文件；大多数使用的是 xxx.xml文件；
+- 以**数据为中心**，比json、xml等更适合做配置文件
+
+YAML：配置例子
+```yml
+server:
+    port:8081
+```
+XML:
+```xml
+<server>
+    <port>8081</port>
+</server>
+```
+
+## 2.YAML语法：
+### 1.基本语法
+k:（空格）v:表示一对键值对（空格必须有）
+
+以空格的缩进来控制层级关系；只要是左对齐的一列数据，都是同一个层级
+```yaml
+server:
+    port:8081
+    path:/hello
+```
+
+### 2.值的写法
+#### 字面量：普通的值（数值，字符串，布尔）
+k: v:字面直接来写；
+
+字符串默认不用加上单引号或者双引号
+
+"":双引号 不会转义字符串里的特殊字符；特殊字符会作为本身想要表示的意思
+
+```name:"zhangsan\n lisi"``` 输出：```zhangsan换行 lisi```
+
+'':单引号 会转义特殊字符，特殊字符最终只是一个普通的字符串数据
+
+```name:'zhangsan\n lisi'``` 输出：```zhangsan\n lisi```
+#### 对象：Map（属性和值）（键值对）
+k :v ：在下一行来写对象的属性和值的关系；注意空格控制缩进
+
+对象还是k:v的方式
+```yml
+frends:
+    lastName: zhangsan
+    age: 20
+```
+行内写法
+```yaml
+friends: {lastName: zhangsan,age: 18} 
+```
+#### 数组（List，Set）：
+用-表示数组中的一个元素
+```yaml
+pets:
+ ‐ cat
+ ‐ dog
+ ‐ pig 
+ ```
+行内写法
+```yaml
+pets: [cat,dog,pig] 
+```
+
+### 3.配置文件值注入
+#### 1、@ConfigurationProperties
+在使用@ConfigurationProperties之前，我们需要导入配置文件处理器，以后编写配置就有提示了
+```xml
+<dependency>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring‐boot‐configuration‐processor</artifactId>
+	<optional>true</optional>
+</dependency> 
+```
+
+1、**application.yml 配置文件**
+```yml
+person:
+  last-name: wanghuahua
+  age: 18
+  boss: false
+  birth: 2017/12/12
+  maps: {k1: v1,k2: 12}
+  lists:
+   - lisi
+   - zhaoliu
+  dog:
+    name: wangwang
+    age: 2
+```
+
+2、**application.properties** 配置文件
+
+我们需要将idea配置文件编码格式转为utf-8, 因为properties 默认GBK，如果不转换的话会产生乱码。
+```java
+person.age=12
+person.boss=false
+person.last-name=张三
+person.maps.k1=v1
+person.maps.k2=v2
+person.lists=a,b,c
+person.dog.name=wanghuahu
+person.dog.age=15
+```
+#### 2、@Value注解
+
+更改javaBean中的注解
+```java
+@Component
+public class Person {
+    /**
+     * <bean class="Person">
+     *     <property name="lastName" value="字面量/${key}从环境变量/#{spEL}"></property>
+     * </bean>
+     */
+    @Value("${person.last-name}")
+    private String lastName;
+    @Value("#{11*2}")
+    private Integer age;
+    @Value("true")
+    private Boolean boss;
+```
+ 
+ 使用场景分析
+
+- 如果说，我们只是在某个业务逻辑中获取一下配置文件的某一项值，使用@Value；
+- 如果专门编写了一个javaBean和配置文件进行映射，我们直接使用@ConfigurationProperties
+
+#### 3.@PropertySource注解
+@**PropertySource**
+
+作用：加载指定的properties配置文件
+
+新建一个person.properties文件
+```java
+person.age=12
+person.boss=false
+person.last-name=李四
+person.maps.k1=v1
+person.maps.k2=v2
+person.lists=a,b,c
+person.dog.name=wanghuahu
+person.dog.age=15
+```
+在javaBean中加入@PropertySource注解
+```java
+@PropertySource(value = {"classpath:person.properties"})
+@Component
+@ConfigurationProperties(prefix = "person")
+public class Person {
+```
+
+#### 4.@ImportResource
+SpringBoot推荐给容器添加组件的方式：
+- 1、配置类=====Spring的xml配置文件（old）
+- 2、全注解方式@Configuration+@Bean（new）
+
+这两个方法均是Spring的配置Bean方法，前者为Spring的XML配置，后者为Spring的注解配置。
+
+1、XML配置
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="HelloService" class="com.wdjr.springboot.service.HelloService"></bean>
+</beans>
+```
+```java
+@ImportResource(locations={"classpath:beans.xml"})
+@SpringBootApplication
+public class SpringBoot02ConfigApplication {
+
+    public static void main(String[] args) {
+        SpringApplication.run(SpringBoot02ConfigApplication.class, args);
+    }
+}
+```
+
+2、注解配置
+```java
+/**
+ * @Configuration：指明当前类是一个配置类；就是来代替之前的Spring配置文件
+ *
+ * 在配置文件中用<bean></bean>标签添加组件
+ */
+
+@Configuration
+public class MyAppConfig {
+
+    //将方法的返回值添加到容器中；容器这个组件id就是方法名
+    @Bean
+    public HelloService helloService01(){
+        System.out.println("配置类给容器添加了HelloService组件");
+        return new HelloService();
+    }
+}
+
+ 
+```
+```java
+@Autowired
+ApplicationContext ioc;
+
+@Test
+public void testHelloService(){
+    boolean b = ioc.containsBean("helloService01");
+    System.out.println(b);
+}
+```
