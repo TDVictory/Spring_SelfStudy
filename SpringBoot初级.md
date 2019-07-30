@@ -368,3 +368,114 @@ public void testHelloService(){
     System.out.println(b);
 }
 ```
+### 4、配置文件占位符
+#### 1、随机数
+```java
+${random.value} 、${random.int}、${random.long}
+${random.int(10)}、${random.int[100,200]}
+```
+#### 2、获取配置值
+```properties
+person.age=${random.int}
+person.boss=false
+person.last-name=张三
+person.maps.k1=v1
+person.maps.k2=v2
+person.lists=a,b,c
+person.dog.name=${person.last-name}'s dog
+person.dog.age=15
+```
+存在以下两种情况
+
+如已声明的person.last-name则以申明值传入，即输出```张三's dog```
+
+假设没有声明person.last-name会默认该参数为string，即输出```person.last-name's dog```
+
+我们可以给在本行给未声明的参数赋值：
+```properties
+person.age=${random.int}
+person.boss=false
+person.last-name=张三${random.uuid}
+person.maps.k1=v1
+person.maps.k2=v2
+person.lists=a,b,c
+person.dog.name=${person.hello:hello}'s dog
+person.dog.age=15
+```
+结果：输出```hello's dog```
+
+### 5、Profile
+#### 1、多Profile文件
+我们在主配置文件编写的时候，文件名可以是```application-{profile}.properties/yml```
+
+假设我们新建了两个propertis，分别用来开发配置和生产配置：
+- application.properties
+- application-dev.properties
+- application-prod.properties
+
+如果没有说明默认使用application.properties
+
+如果我们需要使用其他的配置文件，我们需要在application.properties配置文件指定（因为默认先进application.properties）
+```properties
+spring.profiles.active=dev
+```
+
+#### 2、YAML文档块
+在YAML中，我们使用---来划分文档块，通过profiles:来命名每个文档块，这样我们可以在一个YAML里完成多种配置文件的配置与替换
+```yml
+server:
+  port: 8081
+spring:
+  profiles:
+    active: dev
+
+---
+
+server:
+  port: 9000
+spring:
+  profiles: dev
+
+---
+server:
+  port: 80
+spring:
+  profiles: prod
+  ```
+#### 3、激活指定profile
+1、**在配置文件中激活**
+
+```properties
+spring.profiles.active=dev
+```
+
+2、**命令行**
+
+通过在cmd中以带参数形式启动jar来激活指定的配置文件
+```
+java -jar jar包名称 --spring.profiles.active=dev
+```
+该优先级大于配置文件
+
+3、**虚拟机参数**
+
+在IDEA中设置VM Option为```-Dspring.profiles.active=dev```
+
+#### 6、加载配置文件位置
+SpringBoot启动扫描以下位置的application.properties或者application.yml文件作为Spring boot的默认配置文件
+- file:./config/(项目目录下的config文件夹中)
+- file./(项目目录下)
+- classpath:/config/(类目录下的config文件夹中，IDEA中resource文件夹内属于类目录)
+- classpath:/(类目录下，我们默认创建Spring项目时默认放在此处)
+
+优先级从高到低顺序，高优先级会覆盖低优先级的相同配置；
+
+SpringBoot会把这四个文件全部加载（并不会丢弃低优先级文件），然后进行**互补配置**：加载完高优先级的所有配置后会加载次优先级配置中高优先级未配置的部分。
+
+我们还可以通过spring.config.location 来设定最高优先级配置的默认路径
+
+项目打包好了以后，可以使用命令行参数的形式，启动项目的时候来指定配置文件的新位置；指定配置文件和默认的配置文件会共同起作用，互补配置
+```
+java -jar spring-boot-config-02-0.0.1-SNAPSHOT.jar --spring.config.location=E:/work/application.properties
+```
+运维比较有用，从外部加载，不用修改别的文件
