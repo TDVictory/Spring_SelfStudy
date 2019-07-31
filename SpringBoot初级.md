@@ -478,4 +478,92 @@ SpringBoot会把这四个文件全部加载（并不会丢弃低优先级文件�
 ```
 java -jar spring-boot-config-02-0.0.1-SNAPSHOT.jar --spring.config.location=E:/work/application.properties
 ```
-运维比较有用，从外部加载，不用修改别的文件
+运维比较有用，从外部加载，不用修改别的文件。
+
+
+#### 7.引入外部配置
+SpringBoot也可以从以下位置加载配置；优先级从高到低；高优先级覆盖低优先级，可以互补
+
+命令行参数
+```
+java -jar spring-boot-config-02-0.0.1-SNAPSHOT.jar --server.port=9005 --server.context-path=/abc
+```
+中间一个空格
+
+优先加载profile, 由jar包外到jar包内
+
+- jar包外部的application-{profile}.properties或application.yml(带Spring.profile)配置文件
+- jar包内部的application-{profile}.properties或application.yml(带Spring.profile)配置文件
+- jar包外部的application.properties或application.yml(带Spring.profile)配置文件
+- jar包内部的application.properties或application.yml(不带spring.profile)配置文件
+
+@Configuration注解类的@PropertySource
+
+通过SpringApplication.setDefaultProperties指定的默认属性
+
+#### 8、自动配置原理
+配置文件到底能写什么？怎么写？自动配置原理；
+
+[配置文件能配置的属性参照](https://docs.spring.io/spring-boot/docs/2.0.1.RELEASE/reference/htmlsingle/#common-application-properties)
+
+**自动配置原理：**
+
+1. SpringBoot启动的时候加载主配置类，开启了自动配置功能@EnableAutoConfiguration
+
+2. @EnableAutoConfiguration的作用：
+ - 利用EnableAutoConfigurationImportSelector给容器中导入一些组件
+ - 将类路径下 MATE-INF/spring.factories里面配置的所有的EnableAutoConfiguration的值加入到了容器中；
+
+3. 每一个自动配置类进行自动配置功能；
+ - @Configuration，指定为配置类
+ - @EnableConfigurationProperties（对应properties类名.class）：启动properties类的配置，将配置文件值与该properties类绑定
+ - 对于每个单独的配置类来说，会根据当前不同的条件判断，决定这个配置类是否生效。
+ - 一旦配置类生效；这个配置类就会给容器中添加各种组件（Bean），这些组件的属性是从对应的properties类中获取的，properties类的属性均来自配置文件。
+ 
+xxxAutoConfiguration:自动配置类：给容器中添加组件
+
+xxxProperties:封装配置文件中的属性；
+
+跟之前的Person类一样，配置文件中值加入bean中。
+
+**自动配置精髓**
+1. SpringBoot启动会加载大量的自动配置类
+2. 我们看我们需要的功能有没有SpringBoot默认写好的默认配置类；
+3. 如果有在看这个自动配置类中配置了哪些组件；（只要我们要用的组件有，我们需要再来配置）
+4. 给容器中自动配置添加组件的时候，会从properties类中获取属性。我们就可以在配置文件中指定这些属性的值
+
+**自动配置报告**
+因为自动配置类必须在一定条件下才会生效，所以有时候我们需要知道那些配置生效了
+
+我们可以通过在配置文件中启用debug=true属性，配置文件，打印自动配合报告，这样就可以知道自动配置类生效
+
+# 三、日志
+## 3.1 日志框架
+市面上的日志框架
+| 日志门面（日志的抽象层） | 日志实现 |
+| --- | --- |
+| JCL、SLF4j、jboss-logging | Log4j、JUL、Log4j2 Logback |
+
+左边选一个门面（抽象层）、右边来选一个实现；
+- 日志门面：SLF4j；
+- 日志实现：Logback；
+
+SpringBoot：底层是Spring框架，Spring框架默认使用JCL，SpringBoot使用的是SLF4j和LogBack
+
+## 3.2 SLF4j使用
+### 3.2.1 如何在系统中使用SLF4j
+开发过程中的日志记录方法的调用，不应该来直接调用日志的实现类，而是调用日志抽象层里面的方法；
+
+系统中自带的SLF4j和Logback
+```java
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class HelloWorld {
+  public static void main(String[] args) {
+    Logger logger = LoggerFactory.getLogger(HelloWorld.class);
+    logger.info("Hello World");
+  }
+}
+```
+
