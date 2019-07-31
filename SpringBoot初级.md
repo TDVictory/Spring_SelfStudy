@@ -1,19 +1,20 @@
-# 一、Spring Boot入门
-## 1、Spring Boot 简介
+# Spring Boot入门
+
+## Spring Boot 简介
 - 简化Spring应用开发的一个框架；
 - 整个Spring技术栈的一个大整合；
 - J2EE开发的一站式解决方案；
 
-## 2、微服务
+## 微服务
 微服务：架构风格（服务微化）
 
 一个应用应该是一组小型服务；可以通过HTTP的方式来进行互通
 
 每一个功能元素最终都是一个可独立替换和独立升级的软件单元；
 
-## 3、基础探究
-### 1.POM文件
-#### 1.父项目
+# 一、基础探究
+## 1.1 POM文件
+### 1.1.1 父项目
 ```xml
 <!-- 父级依赖 -->
     <parent>
@@ -51,7 +52,7 @@
 ```
 他来真正管理Spring Boot应用里面的所有依赖版本；是Spring Boot的版本仲裁中心；
 
-#### 2.启动器
+### 1.1.2 启动器
 ```xml
 <!-- 使用SpringMVC和Spring的jar包 -->
 <dependencies>
@@ -66,7 +67,7 @@
 
 Spring Boot将所有的功能场景都抽取出来，做成一个个的starter（启动器），只需要在项目里面引入这些starter，相关场景的所有依赖都会导入进来。要用什么功能就导入什么场景的启动器。
 
-### 2.主程序类，主入口类
+## 1.2 主程序类，主入口类
 ```java
 @SpringBootApplication
 
@@ -129,7 +130,7 @@ J2EE的整体解决方案：
 
 org\springframework\boot\spring-boot-autoconfigure\2.0.1.RELEASE\spring-boot-autoconfigure-2.1.6.RELEASE.jar
 
-### 3、使用Spring Initializer创建一个快速向导
+## 1.3 使用Spring Initializer创建一个快速向导
 1.IDE支持使用Spring Initializer
 
 自己选择需要的组件:例如web
@@ -144,7 +145,7 @@ resources文件夹目录结构
 - application.properties:Spring Boot的默认配置，例如 server.port=9000
 
 # 二、配置文件
-## 1.配置文件
+## 2.1 配置文件
 SpringBoot使用一个全局配置文件，配置文件名是固定的；
 - application.properties
 - application.yml
@@ -171,8 +172,8 @@ XML:
 </server>
 ```
 
-## 2.YAML语法：
-### 1.基本语法
+## 2.2 YAML语法：
+### 2.2.1 基本语法
 k:（空格）v:表示一对键值对（空格必须有）
 
 以空格的缩进来控制层级关系；只要是左对齐的一列数据，都是同一个层级
@@ -182,7 +183,7 @@ server:
     path:/hello
 ```
 
-### 2.值的写法
+### 2.2.2 值的写法
 #### 字面量：普通的值（数值，字符串，布尔）
 k: v:字面直接来写；
 
@@ -215,13 +216,13 @@ pets:
  ‐ cat
  ‐ dog
  ‐ pig 
- ```
+```
 行内写法
 ```yaml
 pets: [cat,dog,pig] 
 ```
 
-### 3.配置文件值注入
+### 2.2.3 配置文件值注入
 #### 1、@ConfigurationProperties
 在使用@ConfigurationProperties之前，我们需要导入配置文件处理器，以后编写配置就有提示了
 ```xml
@@ -279,13 +280,13 @@ public class Person {
     @Value("true")
     private Boolean boss;
 ```
- 
+
  使用场景分析
 
 - 如果说，我们只是在某个业务逻辑中获取一下配置文件的某一项值，使用@Value；
 - 如果专门编写了一个javaBean和配置文件进行映射，我们直接使用@ConfigurationProperties
 
-#### 3.@PropertySource注解
+#### 3、@PropertySource注解
 @**PropertySource**
 
 作用：加载指定的properties配置文件
@@ -309,7 +310,7 @@ person.dog.age=15
 public class Person {
 ```
 
-#### 4.@ImportResource
+#### 4、@ImportResource
 SpringBoot推荐给容器添加组件的方式：
 - 1、配置类=====Spring的xml配置文件（old）
 - 2、全注解方式@Configuration+@Bean（new）
@@ -368,7 +369,7 @@ public void testHelloService(){
     System.out.println(b);
 }
 ```
-### 4、配置文件占位符
+### 2.2.4 配置文件占位符
 #### 1、随机数
 ```java
 ${random.value} 、${random.int}、${random.long}
@@ -404,7 +405,7 @@ person.dog.age=15
 ```
 结果：输出```hello's dog```
 
-### 5、Profile
+### 2.2.5 Profile
 #### 1、多Profile文件
 我们在主配置文件编写的时候，文件名可以是```application-{profile}.properties/yml```
 
@@ -441,7 +442,7 @@ server:
   port: 80
 spring:
   profiles: prod
-  ```
+```
 #### 3、激活指定profile
 1、**在配置文件中激活**
 
@@ -461,7 +462,7 @@ java -jar jar包名称 --spring.profiles.active=dev
 
 在IDEA中设置VM Option为```-Dspring.profiles.active=dev```
 
-#### 6、加载配置文件位置
+#### 4、加载配置文件位置
 SpringBoot启动扫描以下位置的application.properties或者application.yml文件作为Spring boot的默认配置文件
 - file:./config/(项目目录下的config文件夹中)
 - file./(项目目录下)
@@ -481,7 +482,7 @@ java -jar spring-boot-config-02-0.0.1-SNAPSHOT.jar --spring.config.location=E:/w
 运维比较有用，从外部加载，不用修改别的文件。
 
 
-#### 7.引入外部配置
+#### 5.引入外部配置
 SpringBoot也可以从以下位置加载配置；优先级从高到低；高优先级覆盖低优先级，可以互补
 
 命令行参数
@@ -501,7 +502,7 @@ java -jar spring-boot-config-02-0.0.1-SNAPSHOT.jar --server.port=9005 --server.c
 
 通过SpringApplication.setDefaultProperties指定的默认属性
 
-#### 8、自动配置原理
+#### 6、自动配置原理
 配置文件到底能写什么？怎么写？自动配置原理；
 
 [配置文件能配置的属性参照](https://docs.spring.io/spring-boot/docs/2.0.1.RELEASE/reference/htmlsingle/#common-application-properties)
@@ -519,7 +520,7 @@ java -jar spring-boot-config-02-0.0.1-SNAPSHOT.jar --server.port=9005 --server.c
  - @EnableConfigurationProperties（对应properties类名.class）：启动properties类的配置，将配置文件值与该properties类绑定
  - 对于每个单独的配置类来说，会根据当前不同的条件判断，决定这个配置类是否生效。
  - 一旦配置类生效；这个配置类就会给容器中添加各种组件（Bean），这些组件的属性是从对应的properties类中获取的，properties类的属性均来自配置文件。
- 
+
 xxxAutoConfiguration:自动配置类：给容器中添加组件
 
 xxxProperties:封装配置文件中的属性；
@@ -566,4 +567,125 @@ public class HelloWorld {
   }
 }
 ```
+
+每个日志的实现框架都有自己的配置文件，使用slf4j后，配置文件还是做成日志实现框架自己本身的配置文件；
+
+### 3.2.2 遗留问题
+
+如果我们项目以前采用了其他日志框架，那我们**如何让系统中所有的日志都统一到SLF4j**；
+
+1. 将系统中其他日志框架排除出去
+2. 用中间包来替换原有的日志框架
+3. 导入slf4j的对应实现
+
+
+
+## 3.3 SpringBoot日志关系 
+
+**SpringBoot的基础框架**
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-web</artifactId>
+</dependency>
+```
+
+**SpringBoot的日志功能**
+
+```xml
+<dependency>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-logging</artifactId>
+    <version>2.0.1.RELEASE</version>
+    <scope>compile</scope>
+</dependency>
+```
+
+- SpringBoot底层也是使用slf4j+logback的方式进行日志记录
+- SpringBoot将其他的日志都通过中间替换包换成了slf4j（中间包的包名和其他日志包名一致，但是使用的slf4j的内容）
+- 如果我们要引入其他框架，必须把这个框架的默认日志依赖移除掉（因为默认日志和中间包包名一致会产生冲突）
+
+## 3.4 日志使用
+
+### 3.4.1 默认配置
+
+SpringBoot默认帮我们进行了默认的日志配置。
+
+```java
+Logger logger = LoggerFactory.getLogger(getClass());
+
+@Test
+public void contextLoads() {
+    //日志级别由低到高
+    logger.trace("这是trace日志...");
+    logger.debug("这是debug日志...");
+    //SpringBoot默认使用info级别，trace和debug不会输出
+    logger.info("这是info日志...");
+    logger.warn("这是warn日志...");
+    logger.error("这是error日志...");
+}
+```
+
+在application.properties中更改log的默认配置
+
+```properties
+#logging.path=
+#不指定路径的情况下会在当前项目下生成指定名称的log日志
+#也可以在file中指定绝对路径如G:/spring.log的方式创建log日志
+#logging.file=springboot.log
+
+#如果未指定文件的情况下，会在当前磁盘的根目录下创建log日志，名称默认为spring.log
+logging.path=/spring/log
+
+#在控制台输出的日志格式
+logging.pattern.console=
+#指定文件中日志输出的格式
+logging.pattern.file=
+```
+
+日志输出格式
+
+```properties
+#控制台输出的日志格式 
+#%d：日期
+#%thread：线程号 
+#%-5level：靠左 级别 
+#%logger{50}：全类名50字符限制,否则按照句号分割
+#%msg：消息+换行
+#%n：换行
+logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{50} - %msg%n
+```
+
+| logging.file | logging.path | Example  | Description                                |
+| :----------- | :----------- | :------- | :----------------------------------------- |
+| (none)       | none         | none     | 只在控制台输出                             |
+| 指定文件名   | none         | my.log   | 输出到my.log文件                           |
+| (none)       | 指定目录     | /var/log | 输出到当前磁盘下指定目录的spring.log文件中 |
+
+### 3.4.2 指定配置
+
+给类路径下放上每个日志框架自己的配置框架；SpringBoot就不会使用自己默认的配置
+
+| logging System         | Customization                                                |
+| ---------------------- | ------------------------------------------------------------ |
+| Logback                | logback-spring.xml ,logback-spring.groovy,logback.xml or logback.groovy |
+| Log4J2                 | log4j2-spring.xml or log4j2.xml                              |
+| JDK(Java Util Logging) | logging.properties                                           |
+
+这里Spring官方推荐使用带有spring后缀的命名格式：
+
+- logback.xml：直接呗日志框架识别调用
+- logback-spring.xml：日志框架不会直接加载配置项，而是由SpringBoot解析日志配置，这样可以使用SpringBoot的高级Profile功能。
+
+```xml
+<springProfile name="dev">
+	<!-- 可以指定某段配置只在某个环境下生效 -->
+</springProfile>
+<springProfile name!="dev">
+	<!-- 可以指定某段配置只在某个环境下生效 -->
+</springProfile>
+```
+
+
 
