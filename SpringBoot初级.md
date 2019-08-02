@@ -689,3 +689,204 @@ logging.pattern.console=%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{5
 
 
 
+# 四、Web开发
+
+## 4.1 简介
+
+**使用SpringBoot**：
+
+1. 创建SpringBoot应用，选中所需的模块；
+2. SpringBoot通过自动配置完成场景配置，只需要在配置文件中指定少量配置就可以运行起来
+3. 自己编写业务代码；
+
+**自动配置原理？**
+
+这个场景SpringBoot帮我们配置了什么？能不能修改？能修改哪些配置？能不能扩展？
+
+```
+xxxxAutoConfiguration：帮我们给容器中自动配置组件；
+xxxxProperties：配置类来封装
+```
+
+
+
+## 4.2 SpringBoot对静态资源的映射规则
+
+```java
+@ConfigurationProperties(prefix = "spring.resources", ignoreUnknownFields = false)
+public class ResourceProperties implements ResourceLoaderAware, InitializingBean {
+    //可以设置和静态资源相关的参数，缓存时间等
+```
+
+```java
+public void addResourceHandlers(ResourceHandlerRegistry registry) {
+    if (!this.resourceProperties.isAddMappings()) {
+        logger.debug("Default resource handling disabled");
+    } 
+    else {
+        Duration cachePeriod = this.resourceProperties.getCache().getPeriod();
+        CacheControl cacheControl = 
+            this.resourceProperties.getCache().getCachecontrol().toHttpCacheControl();
+        if (!registry.hasMappingForPattern("/webjars/**")) {
+            this.customizeResourceHandlerRegistration(
+                registry.addResourceHandler(new String[]{"/webjars/**"})
+                .addResourceLocations(new String[]{"classpath:/META-INF/resources/webjars/"})
+                .setCachePeriod(this.getSeconds(cachePeriod)).setCacheControl(cacheControl));
+        }
+
+        String staticPathPattern = this.mvcProperties.getStaticPathPattern();
+        if (!registry.hasMappingForPattern(staticPathPattern)) {
+            this.customizeResourceHandlerRegistration(registry.addResourceHandler(new String[]{staticPathPattern}).addResourceLocations(getResourceLocations(this.resourceProperties.getStaticLocations())).setCachePeriod(this.getSeconds(cachePeriod)).setCacheControl(cacheControl));
+        }
+
+    }
+}
+```
+
+1. 所有/webjars/**，都去 classpath:/META-INF/resources/webjars/ 找资源；
+
+   webjars：以jar包的方式引入静态资源；
+
+   localhost:8080/webjars/jquery/3.4.1/jquery.js
+
+
+
+2. "/**"访问当前项目的任何资源
+
+   会在这几文件夹下去找静态路径（静态资源文件夹）
+
+   ```
+   "classpath:/META-INF/resources/", 
+   "classpath:/resources/",
+   "classpath:/static/", 
+   "classpath:/public/",
+   "/";当前项目的根路径
+   ```
+
+   localhost:8080/abc 等同于去类路径下找静态资源abc
+
+   
+
+3. 欢迎页；静态资源文件夹下的所有index.html页面
+
+   localhost:8080/ 等同找index页面
+
+   
+
+4. 所有的**/favicon.ico 都是在静态资源文件下找
+
+   favicon.ico 用于更改网页图标
+
+
+
+## 4.3 模板引擎
+
+JSP、Velocity、Freemarker、Thymeleaf
+
+SpringBoot推荐使用Thymeleaf；
+
+### 4.3.1 引入thymeleaf
+
+```xml
+<dependency>
+    <groupId>org.thymeleaf</groupId>
+    <artifactId>thymeleaf-spring5</artifactId>
+</dependency>
+<dependency>
+    <groupId>org.thymeleaf.extras</groupId>
+    <artifactId>thymeleaf-extras-java8time</artifactId>
+</dependency>
+```
+
+### 4.3.2 Thymeleaf使用和语法
+
+```java
+public class ThymeleafProperties {
+    private static final Charset DEFAULT_ENCODING;
+    
+    //只要我们把HTML页面放在classpath:/templates/下即可使用
+    public static final String DEFAULT_PREFIX = "classpath:/templates/";
+    public static final String DEFAULT_SUFFIX = ".html";  
+   
+```
+
+**使用**
+
+1. 导入thymeleaf的名称空间
+
+   ```xml
+   <html lang="en" xmlns:th="http://www.thymeleaf.org">
+   ```
+
+2. 使用thymeleaf语法
+
+   ```html
+   <!DOCTYPE html>
+   <html lang="en" xmlns:th="http://www.thymeleaf.org">
+   <head>
+       <meta charset="UTF-8">
+       <title>Title</title>
+   </head>
+   <body>
+       <h1>Succeed!!!</h1>
+       <!--th:text 将div里面的文本内容设置为 -->
+       <div th:text="${hello}">这是欢迎信息</div>
+   </body>
+   </html>
+   ```
+
+### 4.3.3 语法规则
+
+1. th:text：改变当前元素里面的文本内容
+
+   **在SpringBoot的环境下**
+
+   ```html
+   <div id="testid" class="testcalss" th:id="${Lion}" th:class="${Lion}" th:text="${Lion}">
+   	前端数据
+   </div>
+   ```
+
+|      | 功能                            | 标签                                 | 功能                                    |
+| ---- | ------------------------------- | ------------------------------------ | --------------------------------------- |
+| 1    | Fragment inclusion              | th:insert th:replace                 | include(片段包含)                       |
+| 2    | Fragment iteration              | th:each                              | c:forEach(遍历)                         |
+| 3    | Conditional evaluation          | th:if th:unless th:switch th:case    | c:if(条件判断)                          |
+| 4    | Local variable definition       | th:object th:with                    | c:set(声明变量)                         |
+| 5    | General attribute modification  | th:attr th:attrprepend th:attrappend | 属性修改支持前面和后面追加内容          |
+| 6    | Specific attribute modification | th:value th:href th:src ...          | 修改任意属性值                          |
+| 7    | Text (tag body modification)    | th:text th:utext                     | 修改标签体内容  utext：不转义字符大标题 |
+| 8    | Fragment specification          | th:fragment                          | 声明片段                                |
+
+## 4.4 SpringMVC自动配置
+
+### 4.4.1 自动配置SpringMVC
+
+SpringBoot自动配置好了SpringMVC，以下时SpringBoot对SpirngMVC的默认：
+
+- 包含 `ContentNegotiatingViewResolver` 和 `BeanNameViewResolver` beans.
+  - 自动配置类ViewerResolver（视图解析器：根据方法的返回值得到试图对象（view），视图对象决定如何渲染（转发、重定向））
+  - ContentNegotiatingViewResolver：组合所有视图解析器
+  - 定制解析器：我们可以自己给容器中添加一个视图解析器，自动将其组合进来
+- 支持静态资源文件加路径，包含支持Webjars
+- 自动注册了 `Converter`, `GenericConverter`, and `Formatter` beans.
+  - Converter：转换器，类型转换
+  - Formatter：格式化器；
+- 支持 `HttpMessageConverters`
+  - HttpMessageConverter：SpringMVC用来转换Http请求和响应的
+  - HttpMessageConverters是从容器中确定；获取所有的HttpMessageConverter
+- Automatic registration of `MessageCodesResolver` 
+- Static `index.html` support（支持静态首页访问）.
+- Custom `Favicon` support （支持自定义默认图标）
+- Automatic use of a `ConfigurableWebBindingInitializer` bean 
+
+### 4.4.2 扩展SpringMVC
+
+编写一个配置类（@Configuration）
+
+## 4.5 如何修改SpringBoot的默认配置
+
+模式：
+
+1. SpringBoot在自动配置很多组建的时候，先看容器中有没有用户自己配置的（@Bean、@Component）如果有就用用户配置的，如果没有才自动配置；如果有些组建可以有多个，就和默认的一起整合。
+2. 
