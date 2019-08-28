@@ -17,16 +17,13 @@ public class IOCTest {
     @SuppressWarnings("resource")
     @Test
     public void test01() {
-        ApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfig2.class);
+        ApplicationContext applicationContext = new AnnotationConfigApplicationContext(MainConfig3.class);
         String[] definitionNames = applicationContext.getBeanDefinitionNames();
         for (String name:definitionNames
              ) {
             System.out.println(name);
         }
 
-        Color bean = applicationContext.getBean(Color.class);
-        //System.out.println("bean的类型：" + bean.getClass());
-        bean.run();
     }
 
     @Test
