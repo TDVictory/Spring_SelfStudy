@@ -627,3 +627,161 @@ applicationContext.register(MainConfig6.class);
 applicationContext.refresh();
 ```
 
+# 五、AOP
+
+AOP：指在程序运行期间，动态地将某段代码切入到指定方法指定位置进行运行的编程方式。
+
+通知方法有：
+
+- 前置通知（@Before）：在目标运行之前运行
+- 后置通知（@After）：在目标运行结束之后运行
+- 返回通知（@AfterReturning）：在目标正常返回之后运行
+- 异常通知（@AfterThrowing）：在目标方法出现异常以后运行
+- 环绕通知（@Around）：动态代理，手动推进目标方法运行
+
+## 5.1 简单示例
+
+#### 导入依赖
+
+Spring 对 AOP进行了一定的封装，我们导入spring-aspects 模块添加依赖。
+
+```xml
+<dependency>
+    <groupId>org.springframework</groupId>
+    <artifactId>spring-aspects</artifactId>
+    <version>5.1.5.RELEASE</version>
+</dependency>
+```
+
+#### 定义业务逻辑类
+
+我们希望在业务运行的时候会有日志输出，但是我们不希望日志输出和主体业务耦合。
+
+```java
+public class MathCalculator {
+    public int div(int i,int j){
+        //System.out.println("log"); 如果日志输出放在业务逻辑主体内，就会产生耦合
+        return i/j;
+    }
+}
+```
+
+#### 定义日志切面类
+
+我们希望通过日志切面类来感知业务逻辑类的运行状况
+
+```java
+//标注为切面类，只有标注成切面类才能被Spring识别
+@Aspect
+public class LogAspects {
+
+    @Before("execution(public int com.TDVictory.aop.MathCalculator.div(int,int))")
+    public void logStart(){
+        System.out.println("Start");
+    }
+
+    @After("execution(public int com.TDVictory.aop.MathCalculator.div(int,int))")
+    public void logEnd(){
+        System.out.println("End");
+    }
+
+    @AfterReturning("execution(public int com.TDVictory.aop.MathCalculator.div(int,int))")
+    public void logReturn(){
+        System.out.println("Return{}");
+    }
+
+    @AfterThrowing("execution(public int com.TDVictory.aop.MathCalculator.div(int,int))")
+    public void logException(){
+        System.out.println("Exception");
+    }
+}
+
+```
+
+注解中的execution用来表示这个切面类中的该方法在哪里执行，也就是作用的目标。
+
+为了避免我们重复写`"execution(public int com.TDVictory.aop.MathCalculator.div(int,int))"`我们可以设定一个锚点`@Pointcut`。
+
+```java
+@Aspect
+public class LogAspects {
+
+    //我们设置锚点@Pointcut，通过*来表示在com.TDVictory.aop.MathCalculator下具有任意参数和返回值的任意方法
+    @Pointcut("execution(* com.TDVictory.aop.MathCalculator.*(..))")
+    public void pointCut(){
+    }
+
+    //在同类调用时可以不写全包名
+    @Before("pointCut()")
+    public void logStart(){
+        System.out.println("Start");
+    }
+
+    @After("pointCut()")
+    public void logEnd(){
+        System.out.println("End");
+    }
+
+    @AfterReturning("pointCut()")
+    public void logReturn(){
+        System.out.println("Return{}");
+    }
+
+    @AfterThrowing("pointCut()")
+    public void logException(){
+        System.out.println("Exception");
+    }
+}
+```
+
+作为日志工具，我们希望获取当前业务逻辑类的具体参数进行分析，而不仅仅是输出一个固定的字符串。根据不同的通知方法，我们就可以得到业务逻辑各类的参数
+
+```java
+
+```
+
+
+
+#### 加入容器
+
+我们设置好配置类，将业务逻辑类和日志切面类加入容器。同时配置类通过`@EnableAspectJAutoProxy`来启用切面功能。
+
+```java
+//启用切面功能
+@EnableAspectJAutoProxy
+@Configuration
+public class MainConfigOfAOP {
+    @Bean
+    public MathCalculator mathCalculator(){
+        return new MathCalculator();
+    }
+
+    @Bean
+    public LogAspects logAspects(){
+        return new LogAspects();
+    }
+}
+```
+
+#### 运行测试
+
+```java
+public class AOPTest {
+    AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext(MainConfigOfAOP.class);
+    @Test
+    public void aopTest(){
+        MathCalculator mathCalculator = annotationConfigApplicationContext.getBean(MathCalculator.class);
+        System.out.println(mathCalculator.div(6,2));
+    }
+}
+```
+
+#### 输出结果
+
+```java
+Start
+End
+Return{}
+3
+```
+
