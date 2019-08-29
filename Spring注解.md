@@ -785,3 +785,39 @@ Return{}
 3
 ```
 
+## 5.2 AOP 原理解析
+
+### 5.2.1@EnableAspectJAutoProxy 
+
+在上述案例中我们可以看到，我们在配置类上添加了`@EnableAspectJAutoProxy`注解，这样我们开启了切面功能，我们看一下`@EnableAspectJAutoProxy`的具体原理。
+
+```java
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Import({AspectJAutoProxyRegistrar.class})
+public @interface EnableAspectJAutoProxy {
+    boolean proxyTargetClass() default false;
+
+    boolean exposeProxy() default false;
+}
+
+```
+
+可以看到，这个注解通过`@import`将`AspectJAutoProxyRegistrar`这个组件添加到容器中。
+
+而`AspectJAutoProxyRegistrar`这个组件将会给容器中注册一个`AnnotationAwareAspectJAutoProxyCreator`
+
+### 5.2.2 AnnotationAwareAspectJAutoProxyCreator
+
+
+
+`AnnotationAwareAspectJAutoProxyCreator`继承的父类`AbstractAutoProxyCreator`中会实现两个接口：
+
+- SmartInstantiationAwareBeanPostProcessor
+- BeanFactoryAware
+
+
+
+
+
