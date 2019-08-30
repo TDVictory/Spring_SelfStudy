@@ -787,7 +787,9 @@ Return{}
 
 ## 5.2 AOP 原理解析
 
-### 5.2.1@EnableAspectJAutoProxy 
+### 5.2.1 开启AOP功能 
+
+> @EnableAspectJAutoProxy
 
 在上述案例中我们可以看到，我们在配置类上添加了`@EnableAspectJAutoProxy`注解，这样我们开启了切面功能，我们看一下`@EnableAspectJAutoProxy`的具体原理。
 
@@ -808,14 +810,285 @@ public @interface EnableAspectJAutoProxy {
 
 而`AspectJAutoProxyRegistrar`这个组件将会给容器中注册一个`AnnotationAwareAspectJAutoProxyCreator`
 
-### 5.2.2 AnnotationAwareAspectJAutoProxyCreator
+**AnnotationAwareAspectJAutoProxyCreator**是AOP功能的后置处理器。
+
+### 5.2.2 容器创建
+
+> AnnotationAwareAspectJAutoProxyCreator
+
+在我们创建上下文时
+
+```java
+AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext(MainConfigOfAOP.class);
+```
+
+#### 创建后置处理器实例
+
+其中会**注册所有的后置处理器**，为他们创建实例
+
+```java
+// Register bean processors that intercept bean creation.
+registerBeanPostProcessors(beanFactory);
+```
+
+#### 创建业务逻辑类和切面组件
+
+后置处理器创建完成后**创建业务逻辑类和切面组件**
+
+```java
+// Instantiate all remaining (non-lazy-init) singletons.
+finishBeanFactoryInitialization(beanFactory);
+```
+
+后置处理器会拦截组件创建过程
+
+```java
+//因为是顺序执行，会优先执行resolveBeforeInstantiation方法，这个方法将会优先用后置处理器来创建bean
+try {
+    // Give BeanPostProcessors a chance to return a proxy instead of the target bean instance.
+    Object bean = resolveBeforeInstantiation(beanName, mbdToUse);
+    if (bean != null) {
+        return bean;
+    }
+}
+catch (Throwable ex) {
+    throw new BeanCreationException(mbdToUse.getResourceDescription(), beanName,"BeanPostProcessor before instantiation of bean failed", ex);
+}
+
+//如果后置处理器无法创建bean，则正常调用doCreateBean创建bean。
+try {
+    Object beanInstance = doCreateBean(beanName, mbdToUse, args);
+    if (logger.isTraceEnabled()) {
+        logger.trace("Finished creating instance of bean '" + beanName + "'");
+    }
+    return beanInstance;
+}
+```
+
+#### 增强组件
+
+组件创建完成之后，判断组件是否需要增强
+
+```java
+@Override
+public Object postProcessAfterInitialization(@Nullable Object bean, String beanName) {
+    if (bean != null) {
+        Object cacheKey = getCacheKey(bean.getClass(), beanName);
+        if (this.earlyProxyReferences.remove(cacheKey) != bean) {
+            //如果需要增强组件则进行再包装
+            return wrapIfNecessary(bean, beanName, cacheKey);
+        }
+    }
+    return bean;
+}
+```
+
+将切面的通知方法包装成增强器（Advisor）；非业务逻辑组件创建一个代理对象
+
+```java
+protected Object[] getAdvicesAndAdvisorsForBean(
+    Class<?> beanClass, String beanName, @Nullable TargetSource targetSource) {
+    //MathCalculator会在这里获得5个advisor，一个默认四个设定
+    List<Advisor> advisors = findEligibleAdvisors(beanClass, beanName);
+    if (advisors.isEmpty()) {
+        return DO_NOT_PROXY;
+    }
+    return advisors.toArray();
+}
+```
+
+```java
+// 如果存在增强器，则创建代理
+Object[] specificInterceptors = getAdvicesAndAdvisorsForBean(bean.getClass(), beanName, null);
+if (specificInterceptors != DO_NOT_PROXY) {
+    this.advisedBeans.put(cacheKey, Boolean.TRUE);
+    Object proxy = createProxy(
+        bean.getClass(), beanName, specificInterceptors, new SingletonTargetSource(bean));
+    this.proxyTypes.put(cacheKey, proxy.getClass());
+    return proxy;
+}
+//反之则正常返回bean
+this.advisedBeans.put(cacheKey, Boolean.FALSE);
+return bean;
+```
 
 
 
-`AnnotationAwareAspectJAutoProxyCreator`继承的父类`AbstractAutoProxyCreator`中会实现两个接口：
+### 5.2.3 执行目标方法
 
-- SmartInstantiationAwareBeanPostProcessor
-- BeanFactoryAware
+1. 代理对象执行目标方法
+
+2. 通过获取目标的拦截器链。
+
+   ```java
+   public Object intercept(Object proxy, Method method, Object[] args, MethodProxy methodProxy) throws Throwable {
+       Object oldProxy = null;
+       boolean setProxyContext = false;
+       Object target = null;
+       TargetSource targetSource = this.advised.getTargetSource();
+       try {
+           if (this.advised.exposeProxy) {
+               oldProxy = AopContext.setCurrentProxy(proxy);
+               setProxyContext = true;
+           }
+           target = targetSource.getTarget();
+           Class<?> targetClass = (target != null ? target.getClass() : null);
+           //这里获取了目标的拦截器链chain
+           List<Object> chain = this.advised.getInterceptorsAndDynamicInterceptionAdvice(method, targetClass);
+   ...
+       }
+   }
+   ```
+
+3. 利用其链式机制，以此进入每一个拦截器进行执行
+
+   ```java
+   // Check whether we only have one InvokerInterceptor: that is,
+   // no real advice, but just reflective invocation of the target.
+   if (chain.isEmpty() && Modifier.isPublic(method.getModifiers())) {
+       // We can skip creating a MethodInvocation: just invoke the target directly.
+       // Note that the final invoker must be an InvokerInterceptor, so we know
+       // it does nothing but a reflective operation on the target, and no hot
+       // swapping or fancy proxying.
+       Object[] argsToUse = AopProxyUtils.adaptArgumentsIfNecessary(method, args);
+       retVal = methodProxy.invoke(target, argsToUse);
+   }
+   else {
+       //如果链不为空，我们将进入拦截器链依次执行
+       retVal = new CglibMethodInvocation(proxy, target, method, args, targetClass, chain, methodProxy).proceed();
+   }
+   ```
+
+   ```java
+   public Object proceed() throws Throwable {
+       //currentInterceptorIndex初始值默认为-1，interceptorsAndDynamicMethodMatchers为拦截器链上的所有拦截器（上文中分别为1默认4设定，共5个）
+       if (this.currentInterceptorIndex == this.interceptorsAndDynamicMethodMatchers.size() - 1) {
+           //如果读取完所有的拦截器则返回
+           return invokeJoinpoint();
+       }
+       //每次获取currentInterceptorIndex+1上的拦截器，也就是从0开始
+       Object interceptorOrInterceptionAdvice =
+           this.interceptorsAndDynamicMethodMatchers.get(++this.currentInterceptorIndex);
+       //中间这部分不是很清楚= =，案例中不会执行到
+       if (interceptorOrInterceptionAdvice instanceof InterceptorAndDynamicMethodMatcher) {
+           // Evaluate dynamic method matcher here: static part will already have
+           // been evaluated and found to match.
+           InterceptorAndDynamicMethodMatcher dm =
+               (InterceptorAndDynamicMethodMatcher) interceptorOrInterceptionAdvice;
+           Class<?> targetClass = (this.targetClass != null ? this.targetClass : this.method.getDeclaringClass());
+           if (dm.methodMatcher.matches(this.method, targetClass, this.arguments)) {
+               return dm.interceptor.invoke(this);
+           }
+           else {
+               // Dynamic matching failed.
+               // Skip this interceptor and invoke the next in the chain.
+               return proceed();
+           }
+       }
+       //我们获取的拦截器的顺序是默认拦截器，Throwing，Returning，After，Before，会依次执行invoke。因为实际上是个递归调用，所以实际上的执行顺序是相反的
+       else {
+           // It's an interceptor, so we just invoke it: The pointcut will have
+           // been evaluated statically before this object was constructed.
+           return ((MethodInterceptor) interceptorOrInterceptionAdvice).invoke(this);
+       }
+   }
+   ```
+
+   ```java
+   //默认的invoke方法，主要做一些注册操作
+   @Override
+   public Object invoke(MethodInvocation mi) throws Throwable {
+       MethodInvocation oldInvocation = invocation.get();
+       invocation.set(mi);
+       try {     
+           //这里执行proceed又会回到上面代码，此时的currentInterceptorIndex已经加1，就会调用下一个拦截器Throwing的invoke
+           return mi.proceed();
+       }
+       finally {
+           invocation.set(oldInvocation);
+       }
+   }
+   ```
+
+   ```java
+   public class AspectJAfterThrowingAdvice extends AbstractAspectJAdvice
+   		implements MethodInterceptor, AfterAdvice, Serializable {
+   	...
+   	@Override
+   	public Object invoke(MethodInvocation mi) throws Throwable {
+   		try {
+   		//继续递归,下一个是Returning
+   			return mi.proceed();
+   		}
+   		catch (Throwable ex) {
+   			if (shouldInvokeOnThrowing(ex)) {
+   			//如果发生Exception，则会执行对应方法
+   				invokeAdviceMethod(getJoinPointMatch(), null, ex);
+   			}
+   			throw ex;
+   		}
+   	}
+   	...
+   }
+   ```
+
+   ```java
+   public class AfterReturningAdviceInterceptor implements MethodInterceptor, AfterAdvice, Serializable {
+   	...
+   	@Override
+   	public Object invoke(MethodInvocation mi) throws Throwable {
+           ////进入下一个拦截器After
+   		Object retVal = mi.proceed();
+           //如果传上来的retVal是异常，就不会执行Returning的方法
+   		this.advice.afterReturning(retVal, mi.getMethod(), mi.getArguments(), mi.getThis());
+   		return retVal;
+   	}
+   }
+   ```
+
+   ```java
+   public class AspectJAfterAdvice extends AbstractAspectJAdvice
+   		implements MethodInterceptor, AfterAdvice, Serializable {
+   	...
+   	@Override
+   	public Object invoke(MethodInvocation mi) throws Throwable {
+   		try {
+   		//进入下一个拦截器Before
+   			return mi.proceed();
+   		}
+   		finally {
+   		//无论运行过程中是否抛出异常，都会执行After的方法
+   			invokeAdviceMethod(getJoinPointMatch(), null, null);
+   		}
+   	}
+   	...
+   }
+   ```
+
+   ```java
+   public class MethodBeforeAdviceInterceptor implements MethodInterceptor, BeforeAdvice, Serializable {
+   ...
+   	@Override
+   	public Object invoke(MethodInvocation mi) throws Throwable {
+       //首先执行指定的Before方法
+   		this.advice.before(mi.getMethod(), mi.getArguments(), mi.getThis());
+       //因为这是最后一个拦截器，再往下运行就会执行原本的运算功能
+   		return mi.proceed();
+   	}
+   }
+   ```
+
+   
+
+4. 顺序如下：
+
+   1. 执行前置通知
+   2. 执行目标方法
+   3. 执行后置通知
+   4. 执行返回通知
+   5. 如果后置出现异常则执行返回通知
+
+
 
 
 

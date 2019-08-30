@@ -8,6 +8,6 @@ public class AOPTest {
     @Test
     public void aopTest(){
         MathCalculator mathCalculator = annotationConfigApplicationContext.getBean(MathCalculator.class);
-        System.out.println(mathCalculator.div(6,2));
+        mathCalculator.div(6,2);
     }
 }
