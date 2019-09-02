@@ -736,12 +736,6 @@ public class LogAspects {
 
 作为日志工具，我们希望获取当前业务逻辑类的具体参数进行分析，而不仅仅是输出一个固定的字符串。根据不同的通知方法，我们就可以得到业务逻辑各类的参数
 
-```java
-
-```
-
-
-
 #### 加入容器
 
 我们设置好配置类，将业务逻辑类和日志切面类加入容器。同时配置类通过`@EnableAspectJAutoProxy`来启用切面功能。
@@ -1088,9 +1082,158 @@ return bean;
    4. 执行返回通知
    5. 如果后置出现异常则执行返回通知
 
+# 六、声明式事务
 
+1. 导入相关依赖（数据源、数据库驱动、Spring-jdbc模块）
 
+   ```xml
+   <!-- https://mvnrepository.com/artifact/com.mchange/c3p0 -->
+   <dependency>
+       <groupId>com.mchange</groupId>
+       <artifactId>c3p0</artifactId>
+       <version>0.9.5.2</version>
+   </dependency>
+   
+   <!-- https://mvnrepository.com/artifact/mysql/mysql-connector-java -->
+   <dependency>
+       <groupId>mysql</groupId>
+       <artifactId>mysql-connector-java</artifactId>
+       <version>8.0.17</version>
+   </dependency>
+   
+   <dependency>
+       <groupId>org.springframework</groupId>
+       <artifactId>spring-jdbc</artifactId>
+       <version>5.1.5.RELEASE</version>
+   </dependency>
+   ```
 
+2. 配置数据源、JdbcTemplate（Spring提供的简化数据库操作的工具）操作数据
 
+   ```java
+   @Configuration
+   @ComponentScan("com.TDVictory.tx")
+   public class TxConfig {
+       @Bean
+       public DataSource dataSource() throws PropertyVetoException {
+           ComboPooledDataSource dataSource = new ComboPooledDataSource();
+           dataSource.setUser("root");
+           dataSource.setPassword("vivedu");
+           dataSource.setDriverClass("com.mysql.jdbc.Driver");
+           dataSource.setJdbcUrl("jdbc:mysql://localhost:3306/test");
+           return dataSource;
+       }
+   
+       @Bean
+       public JdbcTemplate jdbcTemplate() throws PropertyVetoException {
+           JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource());
+           return jdbcTemplate;
+       }
+   }
+   ```
 
+3. 配置dao类和service类，执行测试
 
+   ```java
+   @Repository
+   public class UserDao {
+       @Autowired
+       JdbcTemplate jdbcTemplate;
+   
+       public void insert(String userName,int userAge){
+           String sql = "INSERT INTO tbl_user(username,age) VALUES(?,?)";
+           System.out.println(userName + "插入完成");
+           jdbcTemplate.update(sql,userName,userAge);
+       }
+   }
+   ```
+
+   ```java
+   @Service
+   public class UserService {
+       @Autowired
+       UserDao userDao;
+   
+       public void insertUser(String userName,int userAge){
+           userDao.insert(userName,userAge);        
+       }
+   }
+   ```
+
+4. 执行测试
+
+   ```java
+   public class IOCTest_tx {
+       AnnotationConfigApplicationContext annotationConfigApplicationContext = new AnnotationConfigApplicationContext(TxConfig.class);
+   
+       @Test
+       public void test(){
+           UserService userService = annotationConfigApplicationContext.getBean(UserService.class);
+           userService.insertUser("张三",21);
+       }
+   }
+   ```
+
+   ```
+   张三插入完成
+   ```
+
+   我们可以看到数据库中插入了张三的信息。
+
+#### 事务
+
+我们可以看到，在Dao中，我们执行了插入数据的指令。按照SQL数据库的属性，一旦发生错误，整个事务必须为了保证原子性而回滚。现在我们为其加上这个属性。
+
+```java
+public void insert(String userName,int userAge){
+    String sql = "INSERT INTO tbl_user(username,age) VALUES(?,?)";
+
+    jdbcTemplate.update(sql,userName,userAge);
+    //这里我们设置了一个错误，未添加前即使出现错误也会插入数据。
+    int i = 10 / 0;
+}
+```
+
+1. 使用TransactionManagement
+
+   我们通过在配置类上标注@EnableTransactionManagement，来开启TransactionManagement的功能。
+
+   然后往容器中注入PlatformTransactionManager组件，并设置我们的数据源
+
+   ```java
+   @EnableTransactionManagement
+   @Configuration
+   @ComponentScan("com.TDVictory.tx")
+   public class TxConfig {
+   	...
+       @Bean
+       public PlatformTransactionManager platformTransactionManager() throws PropertyVetoException {
+           return new DataSourceTransactionManager(dataSource());
+       }
+   }
+   ```
+
+2. @Transaction
+
+   我们在事务方法上标注@Transactional，这样该方法内出现异常后整个方法均会回滚。
+
+   ```java
+   @Repository
+   public class UserDao {
+       @Autowired
+       JdbcTemplate jdbcTemplate;
+   
+       @Transactional
+       public void insert(String userName,int userAge){
+           String sql = "INSERT INTO tbl_user(username,age) VALUES(?,?)";
+   
+           jdbcTemplate.update(sql,userName,userAge);
+           System.out.println(userName + "插入完成");
+           int i = 10 / 0;
+       }
+   }
+   ```
+
+   测试后我们会发现控制台输出了插入完成，但是因为回滚的原因，数据库中并没有添加这个数据。
+
+​	
